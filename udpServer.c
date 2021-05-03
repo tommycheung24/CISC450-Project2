@@ -72,11 +72,10 @@ unsigned char* getHeader(unsigned char* response){
 
 unsigned char* getMessage(unsigned char* response){
 
-	printf("response: %ld\n", strlen(response));
-	unsigned char *newResponce = malloc(strlen(response) + 1);
+	printf("response: %ld\n", strlen(response+4));
+	unsigned char *newResponce = malloc(strlen(response+4) + 1);
 
-	strcpy(newResponce, response);
-	strcat(newResponce, "\0");
+	strcpy(newResponce, response+4);
 
 	printf("newResponce: %ld\n", strlen(newResponce));
 

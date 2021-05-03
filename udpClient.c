@@ -42,11 +42,11 @@ int main(){
 
 	strcpy(header, createHeader((unsigned short) strlen(clientMessage), (unsigned short)0));
 	
-	unsigned char* text = combineText(header, clientMessage);
+	unsigned char *text = combineText(header, clientMessage);
 
-	sendto(clientSock, text, strlen(text), 0,(struct sockaddr*) &serverAddress, sizeof(serverAddress));
+	sendto(clientSock, text, strlen(text+4) + 4, 0,(struct sockaddr*) &serverAddress, sizeof(serverAddress));
 
-	printf("Strlen: %ld", strlen())
+	printf("Sizeof: %ld\n", strlen(text +4) + 4);
 	printf("Message Sent\n");
 	
 	free(text);
@@ -117,11 +117,12 @@ void storeText(int socket){
 }
 
 unsigned char* combineText(unsigned char* header, unsigned char* data){
-	unsigned char* combine = malloc(strlen(header) + strlen(data) + 1);
+	unsigned char* combine = malloc(4 + strlen(data) + 1);
 
 	strcpy(combine, header);
 	strcat(combine+4, data);
 
+	printf("%s\n", combine+4);
 	return combine;
 }
 
@@ -134,8 +135,13 @@ unsigned char* createHeader(unsigned short count, unsigned short seq){
 	header[2] = seq;
 	header[3] = seq >> 8;
 
+	
+
 	unsigned char * headerString = malloc(sizeof(header) + 1);
 	strcpy(headerString, header);
+
+	//printf("Strlen header: %ld\n", strlen(headerString));
+	//printf("Sizeof header: %ld\n", sizeof(headerString));
 
 	return headerString;
 }
