@@ -45,9 +45,6 @@ int main(){
 	unsigned char *text = combineText(header, clientMessage);
 
 	sendto(clientSock, text, strlen(text+4) + 4, 0,(struct sockaddr*) &serverAddress, sizeof(serverAddress));
-
-	printf("Sizeof: %ld\n", strlen(text +4) + 4);
-	printf("Message Sent\n");
 	
 	free(text);
 	
@@ -122,7 +119,6 @@ unsigned char* combineText(unsigned char* header, unsigned char* data){
 	strcpy(combine, header);
 	strcat(combine+4, data);
 
-	printf("%s\n", combine+4);
 	return combine;
 }
 

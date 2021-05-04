@@ -46,8 +46,6 @@ int main(){
 	printf("Size of message: %ld\n", strlen(response));
 	unsigned char header[4];
 	strcpy(header, getHeader(response));
-	unsigned short seq = header[0] + (header[1] << 8);
-	unsigned short count = header[2] + (header[3] << 8);
 
 	printf("%d %d\n", seq, count);
 
@@ -59,6 +57,16 @@ int main(){
 
 	return 0;
 }
+unsigned short getCount(unsigned char* header){
+	unsigned short count = header[2] + (header[3] << 8);
+	return count;
+}
+
+unsigned short getSequence(unsigned char* header){
+	unsigned short seq = header[0] + (header[1] << 8);
+	return seq;
+}
+
 unsigned char* getHeader(unsigned char* response){
 	unsigned char header[4];
 
@@ -81,67 +89,65 @@ unsigned char* getMessage(unsigned char* response){
 
 	return newResponce;
 }
-/*
-void sendText(int socket,char* textName){
+
+void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	
 	//line_buffer is the line in the file, confirm is the response from client 
-	char line_buffer[80], confirm[1];
+	char line_buffer[80];
+	unsigned short ack = 0;
+	socklen_t clientSize = sizeof(client);
+
 
 	FILE* file;
 	file= fopen(textName, "r"); // read file with name textName
 
-	unsigned short sequenceNumber = 1;
+	unsigned short seq = 1;
 	int totalCount = 0;
 
-	//gets a single line in the file and stores it in line_buffer
 	while(fgets(line_buffer, sizeof(line_buffer), file)){
 
-		//cuts the unused space away before sending the data
-		char newLine[strlen(line_buffer)];
-		strcpy(newLine, line_buffer);
+		unsigned char newLine[strlen(line_buffer) + 4];
+		strcpy(newLine, createHeader((unsigned short)strlen(line_buffer), seq));
+		strcat(newLine+4, line_buffer);
 		
 		//gets the size in bytes of the new char array
 		unsigned short count = (unsigned short) sizeof(newLine);
 		
-		//sends the header with info, count and sequence number
-		sendHeader(socket, count, sequenceNumber, 0);
-		//recieves a confirmation from client so the server don't move on until the client is ready
-		recv(socket, confirm, sizeof(confirm), 0);
-		//sends the actually data after the server recieves confirmation
-		send(socket, newLine, sizeof(newLine), 0);
+		sendto(socket, newLine, sizeof(newLine), 0, (struct sockaddr*)client, &clientSize);
 
-		//add 1 to sequence number, add count to totalCount(total bytes send)
-		++sequenceNumber;
-		totalCount += count;
 
-		//waits again for confirmation to move on from client
-		recv(socket, confirm, sizeof(confirm), 0);
+		seq = (seq + 1) % 2;
+		totalCount += strlen(line_buffer);
 	}
-
-	//since it's out of loop it means that there's no more lines to grab from file
-	//time to send the End of Transmission packet
-	sendHeader(socket, 0, sequenceNumber, 1);
-	//sends an empty data 
-	send(socket, "", sizeof(""), 0);
-
-	printf("Number of data packets transmitted: %d\n", sequenceNumber -1);
-	printf("Total number of bytes transmitted: %d\n", totalCount);
 
 	fclose(file);
 }
-*/
 
-unsigned char * createHeader(unsigned short count, unsigned short sequenceNumber){
+unsigned char* combineText(unsigned char* header, unsigned char* data){
+	unsigned char* combine = malloc(4 + strlen(data) + 1);
+
+	strcpy(combine, header);
+	strcat(combine+4, data);
+
+	return combine;
+}
+
+unsigned char* createHeader(unsigned short count, unsigned short seq){
 	unsigned char header[4];
 
-	//putting the two shorts into a 4 bytes char array 
+	//dissambles count and sequence number into a 4 bytes char array
 	header[0] = count;
 	header[1] = count >> 8;
-	header[2] = sequenceNumber;
-	header[3] = sequenceNumber >> 8;
+	header[2] = seq;
+	header[3] = seq >> 8;
+
+	
 
 	unsigned char * headerString = malloc(sizeof(header) + 1);
 	strcpy(headerString, header);
+
+	//printf("Strlen header: %ld\n", strlen(headerString));
+	//printf("Sizeof header: %ld\n", sizeof(headerString));
 
 	return headerString;
 }
