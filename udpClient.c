@@ -7,10 +7,13 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
-void storeText(int socket);
+void storeText(int socket, struct sockaddr_in server);
 unsigned char* createHeader(unsigned short count, unsigned short seq);
 unsigned char* combineText(unsigned char* header, unsigned char* data);
 unsigned char* getHeader(unsigned char* response);
+unsigned short getCount(unsigned char* header);
+unsigned short getSequence(unsigned char* header);
+unsigned char* getMessage(unsigned char* response);
 
 int main(){
 
@@ -21,7 +24,7 @@ int main(){
 
 	//gets the name of the file from user
 	printf("Enter file name: ");
-	scanf("%s", &clientMessage);
+	scanf("%s", clientMessage);
 	
 	clientSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);  //creates a socket
 
@@ -49,7 +52,9 @@ int main(){
 	free(text);
 	
 	//store incoming data for file
-	//storeText(clientSock);
+	
+	storeText(clientSock, serverAddress);
+
 	close(clientSock);
 	return 0;
 }
@@ -64,10 +69,17 @@ unsigned char* getHeader(unsigned char* response){
 
 	return returnHeader;
 }
+unsigned char* getMessage(unsigned char* response){
+	unsigned char *newResponce = malloc(strlen(response+4) + 1);
 
-void storeText(int socket){
-	/*
-	unsigned char responce[84];
+	strcpy(newResponce, response+4);
+	return newResponce;
+}
+
+void storeText(int socket, struct sockaddr_in server){
+
+	unsigned char response[84], header[4], ack[2], message[80];
+	socklen_t serverSize = sizeof(server);
 
 	int totalCount = 0;
 	int totalPacket = 0;
@@ -79,39 +91,47 @@ void storeText(int socket){
 	int dataCount;
 
 	while(1){
+
+		dataCount = recvfrom(socket, response, sizeof(response), 0, (struct sockaddr*)&server, &serverSize);
 		
 		//reassemble the char array into two shorts(count and sequence number)
-		//unsigned short count = header[0] + (header[1] << 8);
-		//unsigned short seq = header[2] + (header[3] << 8);
+		strcpy(header, getHeader(response));
+		unsigned short count = getCount(header);
+		unsigned short seq = getSequence(header);
+		strcpy(message, getMessage(response));
 
-		//clears out the char array
-		bzero(responce, 84);
-		//recieves the data
-		dataCount = recv(socket, responce, sizeof(responce), 0);
-
-		//if the length of the data is 0 and count is zero, then it's the end of transmission
-		if(!strlen(serverResponce) && (count == 0)){
-			printf("End of Transmission Packet with sequence number %d received with %d data bytes\n", seq, count);
-			break;
-		}
 		//puts the data into the file
-		fputs(serverResponce, file);
+		fputs(message, file);
+		//clears out the char array
+		bzero(response, 84);
+		bzero(message, 80);
+		bzero(header, 4);
+		bzero(ack, 2);
+		//recieves the data
+		ack[0] = seq;
+		ack[1] = seq << 8;
+
+		sendto(socket, ack, 2, 0, (struct sockaddr*)&server, sizeof(server));
+		
 		//update value
 		totalCount += count;
-		++totalPacket;
-		printf("Packet %d received with %d data bytes\n", seq, count);		
+		++totalPacket;	
 		
-		//signal to move on
-		send(socket, "", sizeof(""), 0);
 
 	}
 	//close file
 	fclose(file);
-
-	printf("Number of data packets received: %d\n", totalPacket);
-	printf("Number of data bytes received: %d\n", totalCount);
-	*/
 }
+unsigned short getCount(unsigned char* header){
+	unsigned short count = header[2] + (header[3] << 8);
+	return count;
+}
+
+unsigned short getSequence(unsigned char* header){
+	unsigned short seq = header[0] + (header[1] << 8);
+	return seq;
+}
+
 
 unsigned char* combineText(unsigned char* header, unsigned char* data){
 	unsigned char* combine = malloc(4 + strlen(data) + 1);

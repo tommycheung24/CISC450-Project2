@@ -8,10 +8,13 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 
-void sendText(int socket,char* textName);
-unsigned char* createHeader(unsigned short count, unsigned short sequenceNumber);
+void sendText(int socket,unsigned char* textName, struct sockaddr_in client);
+unsigned char* createHeader(unsigned short count, unsigned short seq);
 unsigned char* getHeader(unsigned char* response);
 unsigned char* getMessage(unsigned char* response);
+unsigned short getCount(unsigned char* header);
+unsigned short getSequence(unsigned char* header);
+unsigned char* combineText(unsigned char* header, unsigned char* data);
 
 int main(){
 
@@ -42,16 +45,17 @@ int main(){
 		return 0;
 	}
 
-	printf("Message recieved\n");
 	printf("Size of message: %ld\n", strlen(response));
 	unsigned char header[4];
 	strcpy(header, getHeader(response));
 
+	unsigned char seq = getSequence(header);
+	unsigned char count = getCount(header);
+
 	printf("%d %d\n", seq, count);
 
-	printf("%s\n", getMessage(response));
 
-	//sendText(clientSock, clientResponce);
+	sendText(serverSock, getMessage(response), clientAddress);
 
 	close(serverSock);
 
@@ -79,21 +83,16 @@ unsigned char* getHeader(unsigned char* response){
 }
 
 unsigned char* getMessage(unsigned char* response){
-
-	printf("response: %ld\n", strlen(response+4));
 	unsigned char *newResponce = malloc(strlen(response+4) + 1);
 
 	strcpy(newResponce, response+4);
-
-	printf("newResponce: %ld\n", strlen(newResponce));
-
 	return newResponce;
 }
 
 void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	
 	//line_buffer is the line in the file, confirm is the response from client 
-	char line_buffer[80];
+	unsigned char line_buffer[80], ackMessage[2];
 	unsigned short ack = 0;
 	socklen_t clientSize = sizeof(client);
 
@@ -105,19 +104,21 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	int totalCount = 0;
 
 	while(fgets(line_buffer, sizeof(line_buffer), file)){
+		printf("%s", line_buffer);
 
 		unsigned char newLine[strlen(line_buffer) + 4];
-		strcpy(newLine, createHeader((unsigned short)strlen(line_buffer), seq));
+		strcpy(newLine, createHeader(seq, (unsigned short)strlen(line_buffer)));
 		strcat(newLine+4, line_buffer);
 		
-		//gets the size in bytes of the new char array
-		unsigned short count = (unsigned short) sizeof(newLine);
-		
-		sendto(socket, newLine, sizeof(newLine), 0, (struct sockaddr*)client, &clientSize);
+		while(ack != seq){
+			sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
 
+			recvfrom(socket, ackMessage, sizeof(ackMessage), 0,(struct sockaddr*)&client, &clientSize);
+			ack = getSequence(ackMessage);
+		}
 
 		seq = (seq + 1) % 2;
-		totalCount += strlen(line_buffer);
+		totalCount += strlen(newLine+4);
 	}
 
 	fclose(file);
@@ -132,14 +133,14 @@ unsigned char* combineText(unsigned char* header, unsigned char* data){
 	return combine;
 }
 
-unsigned char* createHeader(unsigned short count, unsigned short seq){
+unsigned char* createHeader(unsigned short seq, unsigned short count){
 	unsigned char header[4];
 
 	//dissambles count and sequence number into a 4 bytes char array
-	header[0] = count;
-	header[1] = count >> 8;
-	header[2] = seq;
-	header[3] = seq >> 8;
+	header[0] = seq;
+	header[1] = seq >> 8;
+	header[2] = count;
+	header[3] = count >> 8;
 
 	
 
