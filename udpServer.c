@@ -45,16 +45,16 @@ int main(){
 		return 0;
 	}
 
-	printf("Size of message: %ld\n", strlen(response));
-	unsigned char header[4];
+	printf("Size of message: %ld\n", strlen(response+4) + 4);
+	unsigned char header[5];
 	strcpy(header, getHeader(response));
 
-	unsigned char seq = getSequence(header);
-	unsigned char count = getCount(header);
+	
+	unsigned short seq = getSequence(header);
+	unsigned short count = getCount(header);
 
 	printf("%d %d\n", seq, count);
-
-
+	
 	sendText(serverSock, getMessage(response), clientAddress);
 
 	close(serverSock);
@@ -72,11 +72,12 @@ unsigned short getSequence(unsigned char* header){
 }
 
 unsigned char* getHeader(unsigned char* response){
-	unsigned char header[4];
+	unsigned char header[5];
 
 	strncpy(header, response, 4);
+	header[4] = '\0';
 
-	unsigned char* returnHeader = malloc(strlen(header)+1);
+	unsigned char* returnHeader = malloc(sizeof(header));
 	strcpy(returnHeader, header);
 
 	return returnHeader;
@@ -92,7 +93,7 @@ unsigned char* getMessage(unsigned char* response){
 void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	
 	//line_buffer is the line in the file, confirm is the response from client 
-	unsigned char line_buffer[80], ackMessage[2];
+	unsigned char line_buffer[81], ackMessage[3];
 	unsigned short ack = 0;
 	socklen_t clientSize = sizeof(client);
 
@@ -138,21 +139,19 @@ unsigned char* combineText(unsigned char* header, unsigned char* data){
 }
 
 unsigned char* createHeader(unsigned short seq, unsigned short count){
-	unsigned char header[4];
+	unsigned char charSeq[2], charCount[2];
 
 	//dissambles count and sequence number into a 4 bytes char array
-	header[0] = seq;
-	header[1] = seq >> 8;
-	header[2] = count;
-	header[3] = count >> 8;
+	charSeq[0] = seq;
+	charSeq[1] = seq >> 8;
+	charCount[0] = count;
+	charCount[1] = count >> 8;
 
-	
 
-	unsigned char * headerString = malloc(sizeof(header) + 1);
-	strcpy(headerString, header);
 
-	//printf("Strlen header: %ld\n", strlen(headerString));
-	//printf("Sizeof header: %ld\n", sizeof(headerString));
+	unsigned char * headerString = malloc(4+ 1);
+	strcpy(headerString, charSeq);
+	strcat(headerString, charCount);
 
 	return headerString;
 }

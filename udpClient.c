@@ -48,6 +48,7 @@ int main(){
 	unsigned char *text = combineText(header, clientMessage);
 
 	sendto(clientSock, text, strlen(text+4) + 4, 0,(struct sockaddr*) &serverAddress, sizeof(serverAddress));
+	printf("Strlen: %ld\n", strlen(text+4)+4);
 	
 	free(text);
 	
@@ -60,11 +61,12 @@ int main(){
 }
 
 unsigned char* getHeader(unsigned char* response){
-	unsigned char header[4];
+	unsigned char header[5];
 
 	strncpy(header, response, 4);
+	header[4] = '\0';
 
-	unsigned char* returnHeader = malloc(strlen(header)+1);
+	unsigned char* returnHeader = malloc(sizeof(header));
 	strcpy(returnHeader, header);
 
 	return returnHeader;
@@ -78,7 +80,7 @@ unsigned char* getMessage(unsigned char* response){
 
 void storeText(int socket, struct sockaddr_in server){
 
-	unsigned char response[84], header[4], ack[2], message[80];
+	unsigned char response[85], header[5], ack[3], message[81];
 	socklen_t serverSize = sizeof(server);
 
 	int totalCount = 0;
@@ -92,6 +94,11 @@ void storeText(int socket, struct sockaddr_in server){
 
 	while(1){
 
+		bzero(response, 85);
+		bzero(message, 81);
+		bzero(header, 5);
+		bzero(ack, 3);
+
 		dataCount = recvfrom(socket, response, sizeof(response), 0, (struct sockaddr*)&server, &serverSize);
 		
 		//reassemble the char array into two shorts(count and sequence number)
@@ -101,15 +108,12 @@ void storeText(int socket, struct sockaddr_in server){
 
 		strcpy(message, getMessage(response));
 
+		printf("Seq and Size: %d %ld\n", seq, count);
 		printf("Message: %s", message);
 
 		//puts the data into the file
 		fputs(message, file);
-		//clears out the char array
-		bzero(response, 84);
-		bzero(message, 80);
-		bzero(header, 4);
-		bzero(ack, 2);
+		
 		//recieves the data
 		ack[0] = seq;
 		ack[1] = seq << 8;
@@ -146,21 +150,19 @@ unsigned char* combineText(unsigned char* header, unsigned char* data){
 }
 
 unsigned char* createHeader(unsigned short seq, unsigned short count){
-	unsigned char header[4];
+	unsigned char charSeq[2], charCount[2];
 
 	//dissambles count and sequence number into a 4 bytes char array
-	header[0] = seq;
-	header[1] = seq >> 8;
-	header[2] = count;
-	header[3] = count >> 8;
+	charSeq[0] = seq;
+	charSeq[1] = seq >> 8;
+	charCount[0] = count;
+	charCount[1] = count >> 8;
 
-	
 
-	unsigned char * headerString = malloc(sizeof(header) + 1);
-	strcpy(headerString, header);
 
-	//printf("Strlen header: %ld\n", strlen(headerString));
-	//printf("Sizeof header: %ld\n", sizeof(headerString));
+	unsigned char * headerString = malloc(4+ 1);
+	strcpy(headerString, charSeq);
+	strcat(headerString, charCount);
 
 	return headerString;
 }
