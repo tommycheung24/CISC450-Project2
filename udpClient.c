@@ -8,7 +8,7 @@
 #include <sys/types.h>
 
 void storeText(int socket, struct sockaddr_in server);
-unsigned char* createHeader(unsigned short count, unsigned short seq);
+unsigned char* createHeader(unsigned short seq, unsigned short count);
 unsigned char* combineText(unsigned char* header, unsigned char* data);
 unsigned char* getHeader(unsigned char* response);
 unsigned short getCount(unsigned char* header);
@@ -43,7 +43,7 @@ int main(){
 	}
 	*/
 
-	strcpy(header, createHeader((unsigned short) strlen(clientMessage), (unsigned short)0));
+	strcpy(header, createHeader((unsigned short)0, (unsigned short) strlen(clientMessage)));
 	
 	unsigned char *text = combineText(header, clientMessage);
 
@@ -98,7 +98,10 @@ void storeText(int socket, struct sockaddr_in server){
 		strcpy(header, getHeader(response));
 		unsigned short count = getCount(header);
 		unsigned short seq = getSequence(header);
+
 		strcpy(message, getMessage(response));
+
+		printf("Message: %s", message);
 
 		//puts the data into the file
 		fputs(message, file);
@@ -137,19 +140,19 @@ unsigned char* combineText(unsigned char* header, unsigned char* data){
 	unsigned char* combine = malloc(4 + strlen(data) + 1);
 
 	strcpy(combine, header);
-	strcat(combine+4, data);
+	strcpy(combine+4, data);
 
 	return combine;
 }
 
-unsigned char* createHeader(unsigned short count, unsigned short seq){
+unsigned char* createHeader(unsigned short seq, unsigned short count){
 	unsigned char header[4];
 
 	//dissambles count and sequence number into a 4 bytes char array
-	header[0] = count;
-	header[1] = count >> 8;
-	header[2] = seq;
-	header[3] = seq >> 8;
+	header[0] = seq;
+	header[1] = seq >> 8;
+	header[2] = count;
+	header[3] = count >> 8;
 
 	
 

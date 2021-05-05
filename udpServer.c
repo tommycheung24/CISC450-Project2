@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 
 void sendText(int socket,unsigned char* textName, struct sockaddr_in client);
-unsigned char* createHeader(unsigned short count, unsigned short seq);
+unsigned char* createHeader(unsigned short seq, unsigned short count);
 unsigned char* getHeader(unsigned char* response);
 unsigned char* getMessage(unsigned char* response);
 unsigned short getCount(unsigned char* header);
@@ -108,7 +108,8 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 
 		unsigned char newLine[strlen(line_buffer) + 4];
 		strcpy(newLine, createHeader(seq, (unsigned short)strlen(line_buffer)));
-		strcat(newLine+4, line_buffer);
+		strcpy(newLine+4, line_buffer);
+		printf("Line sent: %s", newLine+4);
 		
 		while(ack != seq){
 			sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
@@ -119,6 +120,9 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 
 		seq = (seq + 1) % 2;
 		totalCount += strlen(newLine+4);
+
+		bzero(newLine, strlen(line_buffer) + 4);
+		bzero(line_buffer, 80);
 	}
 
 	fclose(file);
