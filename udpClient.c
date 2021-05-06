@@ -82,8 +82,14 @@ void storeText(int socket, struct sockaddr_in server){
 		unsigned short count = response[0] + (response[1] << 8);
 		unsigned short seq = response[2] + (response[3] << 8);
 
+		if(count == 0){
+			break;
+		}
+
 		printf("Seq and Size: %d %d\n", seq, count);
 		printf("Message: %s", response+4);
+
+
 
 		//puts the data into the file
 		fputs(response+4, file);

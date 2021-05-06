@@ -96,6 +96,13 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 		bzero(line_buffer, 80);
 	}
 
+	unsigned char *last = malloc(4);
+	last[0] = 0;
+	last[1] = 0;
+	last[2] = seq;
+	last[3]= seq << 8;
+	sendto(socket, last, 4, 0, (struct sockaddr*)&client, sizeof(client));
+
 	fclose(file);
 }
 
