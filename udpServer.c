@@ -9,12 +9,21 @@
 #include <sys/types.h>
 #include <arpa/inet.h>
 
-void sendText(int socket,unsigned char* textName, struct sockaddr_in client);
+void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int timeout, float ratio);
+int simulateLoss(float ratio);
 
 int main(){
 
 	srand(time(NULL));
 	unsigned char response[256];
+	float ratio;
+	int timeout;
+
+	printf("Enter Timeout(1-10): ");
+	scanf("%d", &timeout);
+	printf("Enter Packet Loss Ratio(0-1):" );
+	scanf("%f", &ratio);
+
 
 	int serverSock;
 	struct sockaddr_in servAddress, clientAddress;
@@ -41,16 +50,15 @@ int main(){
 		return 0;
 	}
 	
-	sendText(serverSock, response +4, clientAddress);
+	sendText(serverSock, response +4, clientAddress, timeout, ratio);
 
 	close(serverSock);
 
 	return 0;
 }
 
-void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
+void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int timeout, float ratio){
 	
-	//line_buffer is the line in the file, confirm is the response from client 
 	unsigned char line_buffer[81], ackMessage[3];
 	unsigned short ack = 0;
 	socklen_t clientSize = sizeof(client);
@@ -73,8 +81,10 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 		strcat(newLine+4, line_buffer);
 		
 		while(ack != seq){
-			sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
-			printf("Packet %d gernerated for transmission with %d data bytes\n", seq, count);
+			if(simulateLoss(ratio) == 0){
+				sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
+				printf("Packet %d gernerated for transmission with %d data bytes\n", seq, count);
+			}
 
 			recvfrom(socket, ackMessage, sizeof(ackMessage), 0,(struct sockaddr*)&client, &clientSize);
 			ack = ackMessage[0] + (ackMessage[1] >> 8);

@@ -8,18 +8,23 @@
 #include <netinet/in.h>
 #include <sys/types.h>
 
-void storeText(int socket, struct sockaddr_in server);
+void storeText(int socket, struct sockaddr_in server, float ratio);
+int simulateACKLoss(float ratio);
 
 int main(){
+
 	srand(time(NULL));
 	int clientSock;
 	struct sockaddr_in serverAddress;
+	float ratio;
 
 	unsigned char clientMessage[256];
 
 	//gets the name of the file from user
 	printf("Enter file name: ");
 	scanf("%s", clientMessage);
+	printf("Enter ACK Loss Ratio: ");
+	scanf("%f", &ratio);
 	
 	clientSock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);  //creates a socket
 
@@ -51,12 +56,13 @@ int main(){
 	
 	//store incoming data for file
 	
-	storeText(clientSock, serverAddress);
+	storeText(clientSock, serverAddress, ratio);
 
 	close(clientSock);
 	return 0;
 }
-void storeText(int socket, struct sockaddr_in server){
+
+void storeText(int socket, struct sockaddr_in server, float ratio){
 
 	unsigned char response[85], ack[3];
 	socklen_t serverSize = sizeof(server);
@@ -95,8 +101,10 @@ void storeText(int socket, struct sockaddr_in server){
 		ack[0] = seq;
 		ack[1] = seq << 8;
 
-		sendto(socket, ack, 2, 0, (struct sockaddr*)&server, sizeof(server));
-		
+		if(simulateACKLoss(ratio) == 0){
+			sendto(socket, ack, 2, 0, (struct sockaddr*)&server, sizeof(server));
+		}
+
 		//update value
 		totalCount += count;
 		++totalPacket;	
