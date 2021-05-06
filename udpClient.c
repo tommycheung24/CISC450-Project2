@@ -42,15 +42,17 @@ int main(){
 		printf("bind() failed");
 	}
 	*/
+	unsigned short count = strlen(clientMessage);
+	unsigned char *text = malloc(count + 4);
+	text[0] = count;
+	text[1] = count << 8;
+	text[2] = 0;
+	text[3] = 0 << 8;
 
-	strcpy(header, createHeader((unsigned short)0, (unsigned short) strlen(clientMessage)));
-	
-	unsigned char *text = combineText(header, clientMessage);
+	strcat(text+4, clientMessage);
 
 	sendto(clientSock, text, strlen(text+4) + 4, 0,(struct sockaddr*) &serverAddress, sizeof(serverAddress));
-	printf("Strlen: %ld\n", strlen(text+4)+4);
-	
-	free(text);
+	printf("Size: %ld\n", strlen(text+4) + 4);
 	
 	//store incoming data for file
 	
@@ -61,13 +63,13 @@ int main(){
 }
 
 unsigned char* getHeader(unsigned char* response){
-	unsigned char header[5];
+	unsigned char header[4];
 
 	strncpy(header, response, 4);
-	header[4] = '\0';
 
-	unsigned char* returnHeader = malloc(sizeof(header));
-	strcpy(returnHeader, header);
+	unsigned char* returnHeader = malloc(sizeof(header) + 1);
+	strncpy(returnHeader, header, 4);
+	returnHeader[4] = '\0';
 
 	return returnHeader;
 }
@@ -102,17 +104,14 @@ void storeText(int socket, struct sockaddr_in server){
 		dataCount = recvfrom(socket, response, sizeof(response), 0, (struct sockaddr*)&server, &serverSize);
 		
 		//reassemble the char array into two shorts(count and sequence number)
-		strcpy(header, getHeader(response));
-		unsigned short count = getCount(header);
-		unsigned short seq = getSequence(header);
+		unsigned short count = response[0] + (response[1] << 8);
+		unsigned short seq = response[2] + (response[3] << 8);
 
-		strcpy(message, getMessage(response));
-
-		printf("Seq and Size: %d %ld\n", seq, count);
-		printf("Message: %s", message);
+		printf("Seq and Size: %d %d\n", seq, count);
+		printf("Message: %s", response+4);
 
 		//puts the data into the file
-		fputs(message, file);
+		fputs(response+4, file);
 		
 		//recieves the data
 		ack[0] = seq;
@@ -129,12 +128,12 @@ void storeText(int socket, struct sockaddr_in server){
 	//close file
 	fclose(file);
 }
-unsigned short getCount(unsigned char* header){
+unsigned short getSequence(unsigned char* header){
 	unsigned short count = header[2] + (header[3] << 8);
 	return count;
 }
 
-unsigned short getSequence(unsigned char* header){
+unsigned short getCount(unsigned char* header){
 	unsigned short seq = header[0] + (header[1] << 8);
 	return seq;
 }
@@ -143,26 +142,24 @@ unsigned short getSequence(unsigned char* header){
 unsigned char* combineText(unsigned char* header, unsigned char* data){
 	unsigned char* combine = malloc(4 + strlen(data) + 1);
 
-	strcpy(combine, header);
+	strncpy(combine, header, 4);
 	strcpy(combine+4, data);
 
 	return combine;
 }
 
-unsigned char* createHeader(unsigned short seq, unsigned short count){
-	unsigned char charSeq[2], charCount[2];
+unsigned char* createHeader(unsigned short count, unsigned short seq){
+	unsigned char header[4];
 
 	//dissambles count and sequence number into a 4 bytes char array
-	charSeq[0] = seq;
-	charSeq[1] = seq >> 8;
-	charCount[0] = count;
-	charCount[1] = count >> 8;
-
-
+	header[0] = count;
+	header[1] = count >> 8;
+	header[2] = seq;
+	header[3] = seq >> 8;
 
 	unsigned char * headerString = malloc(4+ 1);
-	strcpy(headerString, charSeq);
-	strcat(headerString, charCount);
+	strncpy(headerString, header, 4);
+	headerString[4] = '\0';
 
 	return headerString;
 }

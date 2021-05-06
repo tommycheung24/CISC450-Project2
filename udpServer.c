@@ -46,39 +46,39 @@ int main(){
 	}
 
 	printf("Size of message: %ld\n", strlen(response+4) + 4);
-	unsigned char header[5];
-	strcpy(header, getHeader(response));
+	unsigned char header[4];
+	strncpy(header, response, 4);
 
 	
-	unsigned short seq = getSequence(header);
-	unsigned short count = getCount(header);
+	unsigned short count = response[0] + (response[1] << 8);
+	unsigned short seq =  response[2] + (response[3] >> 8);
 
-	printf("%d %d\n", seq, count);
+	printf("Seq: %d Count: %d\n", seq, count);
 	
-	sendText(serverSock, getMessage(response), clientAddress);
+	sendText(serverSock, response +4, clientAddress);
 
 	close(serverSock);
 
 	return 0;
 }
-unsigned short getCount(unsigned char* header){
+unsigned short getSequence(unsigned char* header){
 	unsigned short count = header[2] + (header[3] << 8);
 	return count;
 }
 
-unsigned short getSequence(unsigned char* header){
+unsigned short getCount(unsigned char* header){
 	unsigned short seq = header[0] + (header[1] << 8);
 	return seq;
 }
 
 unsigned char* getHeader(unsigned char* response){
-	unsigned char header[5];
+	unsigned char header[4];
 
-	strncpy(header, response, 4);
+	strcpy(header, response);
+
+	unsigned char* returnHeader = malloc(sizeof(header) + 1);
+	strncpy(returnHeader, header, 4);
 	header[4] = '\0';
-
-	unsigned char* returnHeader = malloc(sizeof(header));
-	strcpy(returnHeader, header);
 
 	return returnHeader;
 }
@@ -105,18 +105,22 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	int totalCount = 0;
 
 	while(fgets(line_buffer, sizeof(line_buffer), file)){
-		printf("%s", line_buffer);
 
-		unsigned char newLine[strlen(line_buffer) + 4];
-		strcpy(newLine, createHeader(seq, (unsigned short)strlen(line_buffer)));
-		strcpy(newLine+4, line_buffer);
-		printf("Line sent: %s", newLine+4);
+		unsigned short count = strlen(line_buffer);
+		unsigned char *newLine = malloc(count + 5);
+		newLine[0] = count;
+		newLine[1] = count << 8;
+		newLine[2] = seq;
+		newLine[3] = seq << 8;
+		strcat(newLine+4, line_buffer);
+		printf("Seq: %d Count: %d\n", seq, count);
+		printf("Line: %s" ,newLine+4);
 		
 		while(ack != seq){
 			sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
 
 			recvfrom(socket, ackMessage, sizeof(ackMessage), 0,(struct sockaddr*)&client, &clientSize);
-			ack = getSequence(ackMessage);
+			ack = ackMessage[0] + (ackMessage[1] >> 8);
 		}
 
 		seq = (seq + 1) % 2;
@@ -138,21 +142,15 @@ unsigned char* combineText(unsigned char* header, unsigned char* data){
 	return combine;
 }
 
-unsigned char* createHeader(unsigned short seq, unsigned short count){
-	unsigned char charSeq[2], charCount[2];
+unsigned char* createHeader(unsigned short count, unsigned short seq){
+	unsigned char* header = malloc(5);
 
 	//dissambles count and sequence number into a 4 bytes char array
-	charSeq[0] = seq;
-	charSeq[1] = seq >> 8;
-	charCount[0] = count;
-	charCount[1] = count >> 8;
+	header[0] = count;
+	header[1] = count << 8;
+	header[2] = seq;
+	header[3] = seq << 8;
+	header[4] = '\0';
 
-
-
-	unsigned char * headerString = malloc(4+ 1);
-	strcpy(headerString, charSeq);
-	strcat(headerString, charCount);
-
-	return headerString;
+	return header;
 }
-
