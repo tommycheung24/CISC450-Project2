@@ -9,12 +9,6 @@
 #include <arpa/inet.h>
 
 void sendText(int socket,unsigned char* textName, struct sockaddr_in client);
-unsigned char* createHeader(unsigned short seq, unsigned short count);
-unsigned char* getHeader(unsigned char* response);
-unsigned char* getMessage(unsigned char* response);
-unsigned short getCount(unsigned char* header);
-unsigned short getSequence(unsigned char* header);
-unsigned char* combineText(unsigned char* header, unsigned char* data);
 
 int main(){
 
@@ -61,34 +55,6 @@ int main(){
 
 	return 0;
 }
-unsigned short getSequence(unsigned char* header){
-	unsigned short count = header[2] + (header[3] << 8);
-	return count;
-}
-
-unsigned short getCount(unsigned char* header){
-	unsigned short seq = header[0] + (header[1] << 8);
-	return seq;
-}
-
-unsigned char* getHeader(unsigned char* response){
-	unsigned char header[4];
-
-	strcpy(header, response);
-
-	unsigned char* returnHeader = malloc(sizeof(header) + 1);
-	strncpy(returnHeader, header, 4);
-	header[4] = '\0';
-
-	return returnHeader;
-}
-
-unsigned char* getMessage(unsigned char* response){
-	unsigned char *newResponce = malloc(strlen(response+4) + 1);
-
-	strcpy(newResponce, response+4);
-	return newResponce;
-}
 
 void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	
@@ -133,24 +99,3 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	fclose(file);
 }
 
-unsigned char* combineText(unsigned char* header, unsigned char* data){
-	unsigned char* combine = malloc(4 + strlen(data) + 1);
-
-	strcpy(combine, header);
-	strcat(combine+4, data);
-
-	return combine;
-}
-
-unsigned char* createHeader(unsigned short count, unsigned short seq){
-	unsigned char* header = malloc(5);
-
-	//dissambles count and sequence number into a 4 bytes char array
-	header[0] = count;
-	header[1] = count << 8;
-	header[2] = seq;
-	header[3] = seq << 8;
-	header[4] = '\0';
-
-	return header;
-}

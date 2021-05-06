@@ -8,12 +8,6 @@
 #include <sys/types.h>
 
 void storeText(int socket, struct sockaddr_in server);
-unsigned char* createHeader(unsigned short seq, unsigned short count);
-unsigned char* combineText(unsigned char* header, unsigned char* data);
-unsigned char* getHeader(unsigned char* response);
-unsigned short getCount(unsigned char* header);
-unsigned short getSequence(unsigned char* header);
-unsigned char* getMessage(unsigned char* response);
 
 int main(){
 
@@ -61,25 +55,6 @@ int main(){
 	close(clientSock);
 	return 0;
 }
-
-unsigned char* getHeader(unsigned char* response){
-	unsigned char header[4];
-
-	strncpy(header, response, 4);
-
-	unsigned char* returnHeader = malloc(sizeof(header) + 1);
-	strncpy(returnHeader, header, 4);
-	returnHeader[4] = '\0';
-
-	return returnHeader;
-}
-unsigned char* getMessage(unsigned char* response){
-	unsigned char *newResponce = malloc(strlen(response+4) + 1);
-
-	strcpy(newResponce, response+4);
-	return newResponce;
-}
-
 void storeText(int socket, struct sockaddr_in server){
 
 	unsigned char response[85], header[5], ack[3], message[81];
@@ -128,38 +103,5 @@ void storeText(int socket, struct sockaddr_in server){
 	//close file
 	fclose(file);
 }
-unsigned short getSequence(unsigned char* header){
-	unsigned short count = header[2] + (header[3] << 8);
-	return count;
-}
-
-unsigned short getCount(unsigned char* header){
-	unsigned short seq = header[0] + (header[1] << 8);
-	return seq;
-}
 
 
-unsigned char* combineText(unsigned char* header, unsigned char* data){
-	unsigned char* combine = malloc(4 + strlen(data) + 1);
-
-	strncpy(combine, header, 4);
-	strcpy(combine+4, data);
-
-	return combine;
-}
-
-unsigned char* createHeader(unsigned short count, unsigned short seq){
-	unsigned char header[4];
-
-	//dissambles count and sequence number into a 4 bytes char array
-	header[0] = count;
-	header[1] = count >> 8;
-	header[2] = seq;
-	header[3] = seq >> 8;
-
-	unsigned char * headerString = malloc(4+ 1);
-	strncpy(headerString, header, 4);
-	headerString[4] = '\0';
-
-	return headerString;
-}
