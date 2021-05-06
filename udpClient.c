@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -10,11 +11,11 @@
 void storeText(int socket, struct sockaddr_in server);
 
 int main(){
-
+	srand(time(NULL));
 	int clientSock;
 	struct sockaddr_in serverAddress;
 
-	unsigned char clientMessage[256], header[4];
+	unsigned char clientMessage[256];
 
 	//gets the name of the file from user
 	printf("Enter file name: ");
@@ -57,7 +58,7 @@ int main(){
 }
 void storeText(int socket, struct sockaddr_in server){
 
-	unsigned char response[85], header[5], ack[3], message[81];
+	unsigned char response[85], ack[3];
 	socklen_t serverSize = sizeof(server);
 
 	int totalCount = 0;
@@ -72,8 +73,6 @@ void storeText(int socket, struct sockaddr_in server){
 	while(1){
 
 		bzero(response, 85);
-		bzero(message, 81);
-		bzero(header, 5);
 		bzero(ack, 3);
 
 		dataCount = recvfrom(socket, response, sizeof(response), 0, (struct sockaddr*)&server, &serverSize);
@@ -83,13 +82,11 @@ void storeText(int socket, struct sockaddr_in server){
 		unsigned short seq = response[2] + (response[3] << 8);
 
 		if(count == 0){
+			printf("End of Transmission Packet with sequence number %d recieved\n", seq);
 			break;
 		}
 
-		printf("Seq and Size: %d %d\n", seq, count);
-		printf("Message: %s", response+4);
-
-
+		printf("Packet %d recieved with %d data bytes\n", seq, count);
 
 		//puts the data into the file
 		fputs(response+4, file);
@@ -108,6 +105,15 @@ void storeText(int socket, struct sockaddr_in server){
 	}
 	//close file
 	fclose(file);
+}
+
+int simulateACKLoss(float ratio){
+	float n = (float)rand()/ (float)RAND_MAX;
+
+	if(n < ratio){
+		return 1;
+	}
+	return 0;
 }
 
 

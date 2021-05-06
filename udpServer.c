@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -12,6 +13,7 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client);
 
 int main(){
 
+	srand(time(NULL));
 	unsigned char response[256];
 
 	int serverSock;
@@ -38,16 +40,6 @@ int main(){
 		printf("header recv() failed\n");
 		return 0;
 	}
-
-	printf("Size of message: %ld\n", strlen(response+4) + 4);
-	unsigned char header[4];
-	strncpy(header, response, 4);
-
-	
-	unsigned short count = response[0] + (response[1] << 8);
-	unsigned short seq =  response[2] + (response[3] >> 8);
-
-	printf("Seq: %d Count: %d\n", seq, count);
 	
 	sendText(serverSock, response +4, clientAddress);
 
@@ -79,11 +71,10 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 		newLine[2] = seq;
 		newLine[3] = seq << 8;
 		strcat(newLine+4, line_buffer);
-		printf("Seq: %d Count: %d\n", seq, count);
-		printf("Line: %s" ,newLine+4);
 		
 		while(ack != seq){
 			sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
+			printf("Packet %d gernerated for transmission with %d data bytes\n", seq, count);
 
 			recvfrom(socket, ackMessage, sizeof(ackMessage), 0,(struct sockaddr*)&client, &clientSize);
 			ack = ackMessage[0] + (ackMessage[1] >> 8);
@@ -102,7 +93,17 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client){
 	last[2] = seq;
 	last[3]= seq << 8;
 	sendto(socket, last, 4, 0, (struct sockaddr*)&client, sizeof(client));
+	printf("End of Tranmission Packet with sequence number %d transmitted\n", seq);
 
 	fclose(file);
+}
+
+int simulateLoss(float ratio){
+	float n = (float)rand()/(float)RAND_MAX;
+
+	if(n < ratio){
+		return 1;
+	}
+	return 0;
 }
 
