@@ -3,13 +3,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
+
+#include <sys/time.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
 
-void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int timeout, float ratio);
+void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int timeInput, float ratio);
 int simulateLoss(float ratio);
 
 int main(){
@@ -57,12 +60,22 @@ int main(){
 	return 0;
 }
 
-void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int timeout, float ratio){
+void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int timeInput, float ratio){
 	
 	unsigned char line_buffer[81], ackMessage[3];
 	unsigned short ack = 0;
 	socklen_t clientSize = sizeof(client);
 
+
+	double time = pow(10, timeInput);
+	struct timeval timeout, tempTimeout;
+	fd_set currentSock, tempSock;
+	
+	FD_ZERO(&currentSock);
+	FD_SET(socket, &currentSock);
+
+	timeout.tv_sec = (int) time/pow(10,6);
+	timeout.tv_usec = (int) (time - timeout.tv_sec*pow(10,6));
 
 	FILE* file;
 	file= fopen(textName, "r"); // read file with name textName
@@ -72,6 +85,8 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int
 
 	while(fgets(line_buffer, sizeof(line_buffer), file)){
 
+		int redo = 0;
+		int reply = 0;
 		unsigned short count = strlen(line_buffer);
 		unsigned char *newLine = malloc(count + 5);
 		newLine[0] = count;
@@ -81,19 +96,41 @@ void sendText(int socket,unsigned char* textName, struct sockaddr_in client, int
 		strcat(newLine+4, line_buffer);
 		
 		while(ack != seq){
-			if(simulateLoss(ratio) == 0){
-				sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
+			tempSock = currentSock;
+			tempTimeout = timeout;
+
+			if(redo){
+				printf("Packet %d gernerated for retransmission with %d data bytes\n", seq ,count);
+			}else{
 				printf("Packet %d gernerated for transmission with %d data bytes\n", seq, count);
 			}
 
-			recvfrom(socket, ackMessage, sizeof(ackMessage), 0,(struct sockaddr*)&client, &clientSize);
-			ack = ackMessage[0] + (ackMessage[1] >> 8);
+			if(simulateLoss(ratio) == 0){
+				sendto(socket, newLine, strlen(newLine+4) + 4, 0, (struct sockaddr*)&client, sizeof(client));
+				printf("Packet %d successfully transmitted with %d data bytes\n", seq, count);
+			}else{
+				printf("Packet %d lost\n", seq);
+			}
+
+			if(select(FD_SETSIZE, &tempSock, NULL, NULL, &tempTimeout) < 0){
+				printf("select() failed\n");
+				break;
+			}else if(FD_ISSET(socket, &tempSock)){
+				recvfrom(socket, ackMessage, sizeof(ackMessage), 0,(struct sockaddr*)&client, &clientSize);
+				ack = ackMessage[0] + (ackMessage[1] >> 8);
+				printf("ACK %d recieved\n", ack);
+			}else{
+				redo = 1;
+				printf("Timeout expired for packet number %d\n", seq);
+			}
 		}
+
+		
 
 		seq = (seq + 1) % 2;
 		totalCount += strlen(newLine+4);
 
-		bzero(newLine, strlen(line_buffer) + 4);
+		free(newLine);
 		bzero(line_buffer, 80);
 	}
 

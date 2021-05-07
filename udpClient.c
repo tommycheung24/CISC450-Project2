@@ -69,19 +69,17 @@ void storeText(int socket, struct sockaddr_in server, float ratio){
 
 	int totalCount = 0;
 	int totalPacket = 0;
+	unsigned short prevSeq = 0;
 
 	FILE * file;
 	file = fopen("out.txt", "w"); //write to file out.txt
-
-	int headerCount;
-	int dataCount;
 
 	while(1){
 
 		bzero(response, 85);
 		bzero(ack, 3);
 
-		dataCount = recvfrom(socket, response, sizeof(response), 0, (struct sockaddr*)&server, &serverSize);
+		recvfrom(socket, response, sizeof(response), 0, (struct sockaddr*)&server, &serverSize);
 		
 		//reassemble the char array into two shorts(count and sequence number)
 		unsigned short count = response[0] + (response[1] << 8);
@@ -91,24 +89,28 @@ void storeText(int socket, struct sockaddr_in server, float ratio){
 			printf("End of Transmission Packet with sequence number %d recieved\n", seq);
 			break;
 		}
+		if(seq != prevSeq){
+			printf("Packet %d recieved with %d data bytes\n", seq, count);
+			fputs(response+4, file);
+			
+			totalCount += count;
+			++totalPacket;
+			prevSeq = seq;
+		}else{
+			printf("Duplicate packet %d recieved with %d data bytes\n", seq, count);
+		}
 
-		printf("Packet %d recieved with %d data bytes\n", seq, count);
-
-		//puts the data into the file
-		fputs(response+4, file);
 		
 		//recieves the data
 		ack[0] = seq;
 		ack[1] = seq << 8;
-
+		printf("ACK %d generated for transmission\n", seq);
 		if(simulateACKLoss(ratio) == 0){
 			sendto(socket, ack, 2, 0, (struct sockaddr*)&server, sizeof(server));
+			printf("ACK %d successfully transmitted\n", seq);
+		}else{
+			printf("ACK %d lost\n", seq);
 		}
-
-		//update value
-		totalCount += count;
-		++totalPacket;	
-		
 
 	}
 	//close file
