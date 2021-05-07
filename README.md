@@ -1,5 +1,9 @@
 # CISC450-Project2
 
+# Tommy Cheung
+# Project 2 is done alone with no collborations. 
+#Project 1 was done with Dontae Esdaile.
+
 How to compile(use these lines to run):
 
 	gcc udpClient.c -o c
